@@ -24,6 +24,7 @@ If macOS blocks launch: Right-click → Open.
 ## Features
 
 - One-off and daily tasks
+- Compact “New task” button; the create form stays collapsed until opened
 - Edit existing reminders from the card (pencil, double-click, or context menu)
 - Nagging reminders: once a day, hourly, every 30/15/5 minutes, plus a time window
 - Light and dark themes

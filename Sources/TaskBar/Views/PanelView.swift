@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct PanelView: View {
     @Environment(TaskStore.self) private var store
     @Environment(AppSettings.self) private var settings
+    @State private var composerExpanded = false
 
     private var todayTitle: String {
         let formatter = DateFormatter()
@@ -23,10 +24,10 @@ struct PanelView: View {
 
             Divider().overlay(Theme.hairline)
 
-            ComposerView()
+            ComposerView(isExpanded: $composerExpanded)
                 .padding(.horizontal, 14)
-                .padding(.top, 12)
-                .padding(.bottom, 10)
+                .padding(.top, 8)
+                .padding(.bottom, 8)
 
             footer
         }
@@ -46,6 +47,11 @@ struct PanelView: View {
         }
         .onChange(of: settings.appearance) { _, newValue in
             AppearanceBridge.apply(newValue)
+        }
+        .onChange(of: store.editingTaskID) { _, editingID in
+            if editingID != nil {
+                composerExpanded = false
+            }
         }
         .onDisappear { ImagePasteHandler.shared.stop() }
         .task {
@@ -142,7 +148,7 @@ struct PanelView: View {
                 .foregroundStyle(Theme.accent.opacity(0.85))
             Text("Нет задач")
                 .font(.system(size: 14, weight: .semibold))
-            Text("Добавьте первую в форме ниже")
+            Text("Нажмите «Новая задача» внизу")
                 .font(.system(size: 12))
                 .foregroundStyle(Theme.muted)
         }
@@ -164,7 +170,7 @@ struct PanelView: View {
                     .foregroundStyle(Theme.muted)
             }
             Spacer()
-            Text("v1.2.0")
+            Text("v1.3.0")
                 .foregroundStyle(Theme.muted.opacity(0.8))
         }
         .font(.system(size: 11))

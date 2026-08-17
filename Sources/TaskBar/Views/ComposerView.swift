@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct ComposerView: View {
     @Environment(TaskStore.self) private var store
+    @Binding var isExpanded: Bool
 
     @State private var title = ""
     @State private var notes = ""
@@ -18,12 +19,72 @@ struct ComposerView: View {
     }
 
     var body: some View {
+        Group {
+            if isExpanded {
+                expandedForm
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            } else {
+                collapsedBar
+                    .transition(.opacity)
+            }
+        }
+        .animation(.snappy(duration: 0.22), value: isExpanded)
+        .onChange(of: isExpanded) { _, open in
+            if open {
+                DispatchQueue.main.async {
+                    titleFocused = true
+                }
+            }
+        }
+    }
+
+    private var collapsedButton: some View {
+        Button {
+            isExpanded = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "plus")
+                    .font(.system(size: 12, weight: .bold))
+                Text("Новая задача")
+                    .font(.system(size: 13, weight: .semibold))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(.glassProminent)
+        .tint(Theme.accent)
+        .help("Создать задачу")
+        .keyboardShortcut("n", modifiers: .command)
+    }
+
+    private var collapsedBar: some View {
+        HStack {
+            Spacer(minLength: 0)
+            collapsedButton
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var expandedForm: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Создать новое")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Theme.muted)
-                .textCase(.uppercase)
-                .tracking(0.4)
+            HStack {
+                Text("Создать новое")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Theme.muted)
+                    .textCase(.uppercase)
+                    .tracking(0.4)
+                Spacer()
+                Button {
+                    isExpanded = false
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .buttonStyle(.glass)
+                .controlSize(.mini)
+                .help("Скрыть")
+                .keyboardShortcut(.cancelAction)
+            }
 
             TaskTextField(placeholder: "название") {
                 TextField("", text: $title, prompt: Text("название").foregroundStyle(Theme.muted))
@@ -126,6 +187,6 @@ struct ComposerView: View {
         remind = true
         isDaily = false
         schedule = .default
-        titleFocused = true
+        isExpanded = false
     }
 }
