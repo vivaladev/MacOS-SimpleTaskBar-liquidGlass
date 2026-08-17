@@ -16,6 +16,7 @@ let package = Package(
                 .linkedFramework("AppKit"),
                 .linkedFramework("SwiftUI"),
                 .linkedFramework("UserNotifications"),
+                .linkedFramework("UniformTypeIdentifiers"),
             ]
         ),
     ]

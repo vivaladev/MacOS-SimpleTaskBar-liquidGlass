@@ -24,7 +24,11 @@ If macOS blocks launch: Right-click → Open.
 ## Features
 
 - One-off and daily tasks
+- Edit existing reminders from the card (pencil, double-click, or context menu)
+- Nagging reminders: once a day, hourly, every 30/15/5 minutes, plus a time window
+- Light and dark themes
+- Images via paperclip or Cmd+V
+- Import / export `.taskbarbackup` for moving between Macs
 - Deadline sorting (nearest first)
 - Overdue highlighting
-- Local storage in `~/Library/Application Support/TaskBar/tasks.json`
-- macOS notifications at 09:00 on deadline day (daily tasks repeat every day)
+- Local storage in `~/Library/Application Support/TaskBar/`

@@ -6,7 +6,7 @@ DIST="$ROOT/dist"
 APP_NAME="TaskBar"
 APP="$DIST/${APP_NAME}.app"
 ICON_SRC="${1:-}"
-VERSION="1.0.0"
+VERSION="1.2.0"
 BUNDLE_ID="app.simpletaskbar.liquidglass"
 
 cd "$ROOT"

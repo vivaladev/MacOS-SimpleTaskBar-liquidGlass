@@ -1,7 +1,10 @@
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct PanelView: View {
     @Environment(TaskStore.self) private var store
+    @Environment(AppSettings.self) private var settings
 
     private var todayTitle: String {
         let formatter = DateFormatter()
@@ -28,8 +31,23 @@ struct PanelView: View {
             footer
         }
         .frame(width: Theme.panelWidth, height: Theme.panelHeight)
-        .containerBackground(.clear, for: .window)
-        .preferredColorScheme(.dark)
+        .id(settings.appearance)
+        .environment(\.colorScheme, settings.appearance.colorScheme)
+        .preferredColorScheme(settings.appearance.colorScheme)
+        .containerBackground(for: .window) {
+            Rectangle().fill(.regularMaterial)
+        }
+        .onPasteCommand(of: [.image, .fileURL, .png, .jpeg, .tiff]) { _ in
+            store.ingestPastedImages()
+        }
+        .onAppear {
+            AppearanceBridge.apply(settings.appearance)
+            ImagePasteHandler.shared.start(onPaste: { store.ingestPastedImages() })
+        }
+        .onChange(of: settings.appearance) { _, newValue in
+            AppearanceBridge.apply(newValue)
+        }
+        .onDisappear { ImagePasteHandler.shared.stop() }
         .task {
             await store.bootstrap()
         }
@@ -40,12 +58,27 @@ struct PanelView: View {
             HStack(spacing: 8) {
                 Text("Задачи")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
 
                 Spacer()
 
                 GlassEffectContainer(spacing: 6) {
                     HStack(spacing: 6) {
+                        Button {
+                            settings.toggleAppearance()
+                        } label: {
+                            Image(systemName: settings.appearance.icon)
+                        }
+                        .help(settings.appearance == .dark ? "Светлая тема" : "Тёмная тема")
+
+                        Menu {
+                            Button("Экспорт…") { store.exportBackup() }
+                            Button("Импорт…") { store.importBackup() }
+                        } label: {
+                            Image(systemName: "square.and.arrow.up.on.square")
+                        }
+                        .help("Импорт и экспорт")
+
                         Button {
                             Task { await store.bootstrap() }
                         } label: {
@@ -84,7 +117,14 @@ struct PanelView: View {
                         .padding(.top, 48)
                 } else {
                     ForEach(store.sortedTasks) { item in
-                        TaskCardView(item: item)
+                        TaskCardView(item: item, hovered: store.hoveredTaskID == item.id)
+                            .onHover { hovering in
+                                if hovering {
+                                    store.hoveredTaskID = item.id
+                                } else if store.hoveredTaskID == item.id {
+                                    store.hoveredTaskID = nil
+                                }
+                            }
                             .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
@@ -113,7 +153,10 @@ struct PanelView: View {
 
     private var footer: some View {
         HStack {
-            if !store.notificationsAllowed, store.tasks.contains(where: \.remind) {
+            if let toast = store.toast {
+                Text(toast)
+                    .foregroundStyle(Theme.accent)
+            } else if !store.notificationsAllowed, store.tasks.contains(where: \.remind) {
                 Text("Уведомления выключены в системе")
                     .foregroundStyle(Theme.overdue)
             } else {
@@ -121,7 +164,7 @@ struct PanelView: View {
                     .foregroundStyle(Theme.muted)
             }
             Spacer()
-            Text("v1.0.0")
+            Text("v1.2.0")
                 .foregroundStyle(Theme.muted.opacity(0.8))
         }
         .font(.system(size: 11))
@@ -139,6 +182,40 @@ struct PanelView: View {
             return "\(total.tasksWord) · просрочено \(overdue)"
         }
         return "\(total.tasksWord) · сохранено локально"
+    }
+}
+
+@MainActor
+final class ImagePasteHandler {
+    static let shared = ImagePasteHandler()
+
+    private var monitor: Any?
+    private var onPaste: () -> Void = {}
+
+    func start(onPaste: @escaping () -> Void) {
+        stop()
+        self.onPaste = onPaste
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let command = event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.command)
+            guard command, event.charactersIgnoringModifiers == "v" else { return event }
+            let hasText = !(NSPasteboard.general.string(forType: .string)?.isEmpty ?? true)
+            let images = ImageCodec.jpegData(from: .general)
+            if !images.isEmpty, !hasText {
+                Task { @MainActor in
+                    ImagePasteHandler.shared.onPaste()
+                }
+                return nil
+            }
+            return event
+        }
+    }
+
+    func stop() {
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+            self.monitor = nil
+        }
+        onPaste = {}
     }
 }
 

@@ -8,6 +8,8 @@ struct TaskItem: Identifiable, Codable, Hashable, Sendable {
     var remind: Bool
     var isDaily: Bool
     var createdAt: Date
+    var schedule: ReminderSchedule
+    var attachments: [TaskAttachment]
 
     init(
         id: UUID = UUID(),
@@ -16,7 +18,9 @@ struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         deadline: Date,
         remind: Bool,
         isDaily: Bool = false,
-        createdAt: Date = Date()
+        createdAt: Date = Date(),
+        schedule: ReminderSchedule = .default,
+        attachments: [TaskAttachment] = []
     ) {
         self.id = id
         self.title = title
@@ -25,10 +29,12 @@ struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         self.remind = remind
         self.isDaily = isDaily
         self.createdAt = createdAt
+        self.schedule = schedule.clamped()
+        self.attachments = attachments
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, notes, deadline, remind, isDaily, createdAt
+        case id, title, notes, deadline, remind, isDaily, createdAt, schedule, attachments
     }
 
     init(from decoder: Decoder) throws {
@@ -40,6 +46,8 @@ struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         remind = try container.decode(Bool.self, forKey: .remind)
         isDaily = try container.decodeIfPresent(Bool.self, forKey: .isDaily) ?? false
         createdAt = try container.decode(Date.self, forKey: .createdAt)
+        schedule = (try container.decodeIfPresent(ReminderSchedule.self, forKey: .schedule) ?? .default).clamped()
+        attachments = try container.decodeIfPresent([TaskAttachment].self, forKey: .attachments) ?? []
     }
 
     func isOverdue(on day: Date = Date(), calendar: Calendar = .current) -> Bool {

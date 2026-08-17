@@ -1,4 +1,6 @@
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ComposerView: View {
     @Environment(TaskStore.self) private var store
@@ -8,6 +10,7 @@ struct ComposerView: View {
     @State private var deadline = Date()
     @State private var remind = true
     @State private var isDaily = false
+    @State private var schedule = ReminderSchedule.default
     @FocusState private var titleFocused: Bool
 
     private var canSubmit: Bool {
@@ -15,25 +18,34 @@ struct ComposerView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("Создать новое")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Theme.muted)
                 .textCase(.uppercase)
                 .tracking(0.4)
 
-            field(placeholder: "название") {
+            TaskTextField(placeholder: "название") {
                 TextField("", text: $title, prompt: Text("название").foregroundStyle(Theme.muted))
                     .textFieldStyle(.plain)
                     .focused($titleFocused)
                     .onSubmit(submit)
             }
 
-            field(placeholder: "текст") {
+            TaskTextField(placeholder: "текст") {
                 TextField("", text: $notes, prompt: Text("текст").foregroundStyle(Theme.muted), axis: .vertical)
                     .textFieldStyle(.plain)
-                    .lineLimit(2...4)
+                    .lineLimit(2...3)
             }
+
+            ImageStripView(
+                images: ImagePicker.nsImages(from: store.composerImages),
+                onRemove: { index in
+                    guard store.composerImages.indices.contains(index) else { return }
+                    store.composerImages.remove(at: index)
+                },
+                onAdd: { ImagePicker.pick { appendImages($0) } }
+            )
 
             Picker("тип", selection: $isDaily) {
                 Text("разово").tag(false)
@@ -55,7 +67,6 @@ struct ComposerView: View {
                         DatePicker("", selection: $deadline, displayedComponents: .date)
                             .datePickerStyle(.compact)
                             .labelsHidden()
-                            .colorScheme(.dark)
                     }
                 }
 
@@ -73,6 +84,10 @@ struct ComposerView: View {
                 }
             }
 
+            if remind {
+                ReminderScheduleControls(schedule: $schedule)
+            }
+
             Button(action: submit) {
                 Text("Добавить")
                     .font(.system(size: 13, weight: .semibold))
@@ -81,36 +96,36 @@ struct ComposerView: View {
             .buttonStyle(.glassProminent)
             .tint(Theme.accent)
             .disabled(!canSubmit)
-            .keyboardShortcut(.defaultAction)
+            .modifier(OptionalDefaultAction(enabled: store.editingTaskID == nil))
         }
         .padding(14)
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    private func field<Content: View>(placeholder: String, @ViewBuilder content: () -> Content) -> some View {
-        content()
-            .font(.system(size: 13))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.white.opacity(0.06))
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(Theme.hairline, lineWidth: 0.6)
-            }
-            .accessibilityLabel(placeholder)
+    private func appendImages(_ incoming: [Data]) {
+        for jpeg in incoming {
+            guard store.composerImages.count < ImageCodec.maxAttachments else { break }
+            store.composerImages.append(jpeg)
+        }
     }
 
     private func submit() {
         guard canSubmit else { return }
-        store.add(title: title, notes: notes, deadline: deadline, remind: remind, isDaily: isDaily)
+        store.add(
+            title: title,
+            notes: notes,
+            deadline: deadline,
+            remind: remind,
+            isDaily: isDaily,
+            schedule: schedule,
+            images: store.composerImages
+        )
         title = ""
         notes = ""
         deadline = Date()
         remind = true
         isDaily = false
+        schedule = .default
         titleFocused = true
     }
 }
